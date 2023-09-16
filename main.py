@@ -1,7 +1,9 @@
 """main.py"""
 
+import csv
 import json
 from uuid import uuid4
+from pathlib import Path
 
 from fastapi import FastAPI, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from config import DATA_DIR
 from scraibe.pdf import pdf_to_txt
+from scraibe.utils import del_dir
 
 app = FastAPI()
 
@@ -20,6 +23,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def add_to_index(index_path: Path, file_id: str, filename: str) -> None:
+    """
+    Append file info to the index CSV.
+
+    Parameters
+    ----------
+    index_path : Path
+        Path to the index CSV file.
+    file_id : str
+        Unique ID for the file.
+    filename : str
+        Original filename from the metadata.
+    """
+
+    with index_path.open("a", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([file_id, filename])
 
 
 @app.get("/")
@@ -47,12 +69,21 @@ async def upload_notes(file: UploadFile = Form(...), metadata: str = Form(...)):
 
     metadata = json.loads(metadata)
 
-    try:
-        basename = str(uuid4())
-        pdf_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.pdf")
-        txt_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.txt")
-        json_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.json")
+    # Ensure "filename" is a key in the metadata
+    filename = metadata.get("filename", None)
+    if not filename:
+        return JSONResponse(
+            content={"error": "Metadata must contain a 'filename' key."},
+            status_code=400,
+        )
 
+    basename = str(uuid4())
+    base_dir = DATA_DIR.joinpath("notes", basename)
+    pdf_fp = base_dir.joinpath(f"{basename}.pdf")
+    txt_fp = base_dir.joinpath(f"{basename}.txt")
+    json_fp = base_dir.joinpath(f"{basename}.json")
+
+    try:
         # Ensure the 'notes' directory exists
         pdf_fp.parent.mkdir(parents=True, exist_ok=True)
 
@@ -79,6 +110,10 @@ async def upload_notes(file: UploadFile = Form(...), metadata: str = Form(...)):
             json_fp.unlink()
             return JSONResponse(content={"error": str(e)}, status_code=500)
 
+        # Add file to index
+        index_path = DATA_DIR.joinpath("notes", "index.csv")
+        add_to_index(index_path, basename, filename)
+
         return JSONResponse(
             content={
                 "message": "Files uploaded successfully.",
@@ -88,4 +123,5 @@ async def upload_notes(file: UploadFile = Form(...), metadata: str = Form(...)):
         )
 
     except Exception as e:
+        del_dir(base_dir)
         return JSONResponse(content={"error": str(e)}, status_code=500)
