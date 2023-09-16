@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import DATA_DIR
+from scraibe.pdf import pdf_to_txt
 
 app = FastAPI()
 
@@ -47,25 +48,41 @@ async def upload_notes(file: UploadFile = Form(...), metadata: str = Form(...)):
     metadata = json.loads(metadata)
 
     try:
-        basename = uuid4()
-        pdf_fp = DATA_DIR.joinpath("notes", f"{basename}.pdf")
-        json_fp = DATA_DIR.joinpath("notes", f"{basename}.json")
+        basename = str(uuid4())
+        pdf_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.pdf")
+        txt_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.txt")
+        json_fp = DATA_DIR.joinpath("notes", basename, f"{basename}.json")
 
         # Ensure the 'notes' directory exists
         pdf_fp.parent.mkdir(parents=True, exist_ok=True)
 
         # Save the PDF file
-        with pdf_fp.open("wb") as buffer:
-            buffer.write(await file.read())
+        try:
+            with pdf_fp.open("wb") as buffer:
+                buffer.write(await file.read())
+        except Exception as e:
+            return JSONResponse(content={"error": str(e)}, status_code=500)
 
         # Save the metadata as a JSON file
-        with json_fp.open("w") as json_file:
-            json.dump(metadata, json_file)
+        try:
+            with json_fp.open("w") as json_file:
+                json.dump(metadata, json_file)
+        except Exception as e:
+            pdf_fp.unlink()
+            return JSONResponse(content={"error": str(e)}, status_code=500)
+
+        # Convert the pdf file to a text file
+        try:
+            pdf_to_txt(pdf_fp, txt_fp)
+        except Exception as e:
+            pdf_fp.unlink()
+            json_fp.unlink()
+            return JSONResponse(content={"error": str(e)}, status_code=500)
 
         return JSONResponse(
             content={
                 "message": "Files uploaded successfully.",
-                "filename": str(basename),
+                "filename": basename,
             },
             status_code=200,
         )
