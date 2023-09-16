@@ -19,7 +19,7 @@ def del_dir(dir_path: Path) -> None:
     # Recursively delete all files and subdirectories
     for item in dir_path.iterdir():
         if item.is_dir():
-            delete_directory(item)  # Recurse into subdirectories
+            del_dir(item)  # Recurse into subdirectories
         else:
             item.unlink()  # Delete files
 
