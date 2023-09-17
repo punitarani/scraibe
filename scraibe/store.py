@@ -17,19 +17,18 @@ VECTOR_STORE_URL = os.getenv("VECTOR_STORE_URL")
 
 engine = create_engine(VECTOR_STORE_URL)
 Session = sessionmaker(bind=engine)
-session = Session()
 
 
 class Vector(Base):
     __tablename__ = "vectors"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(String, nullable=False)
     embedding = Column(ARRAY(Float))
 
 
 class VectorStore:
-    def __init__(self, session):
+    def __init__(self, session=Session()):
         self.session = session
 
     def create_table(self):
