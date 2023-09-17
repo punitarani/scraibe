@@ -11,6 +11,7 @@ fastapi = "^0.103.1"
 uvicorn = "^0.23.2"
 codeinterpreterapi = {extras = ["all"], version = "^0.0.12"}
 intersystems-irispython = {path = "lib/intersystems_irispython-3.2.0-py3-none-any.whl"}
+jupyter-kernel-gateway = "^2.5.2"
 matplotlib = "^3.8.0"
 numpy = "^1.26.0"
 openai = "^0.28.0"
