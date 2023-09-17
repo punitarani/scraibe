@@ -6,12 +6,13 @@ authors = ["Punit Arani <punitsai36@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.9.7,<3.13"
 fastapi = "^0.103.1"
 uvicorn = "^0.23.2"
 codeinterpreterapi = {extras = ["all"], version = "^0.0.12"}
 intersystems-irispython = {path = "lib/intersystems_irispython-3.2.0-py3-none-any.whl"}
 matplotlib = "^3.8.0"
+numpy = "^1.26.0"
 openai = "^0.28.0"
 pandas = "^2.1.0"
 pymupdf = "^1.23.3"
