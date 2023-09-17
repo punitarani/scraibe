@@ -2,14 +2,16 @@
 
 import csv
 import json
-from uuid import uuid4
 from pathlib import Path
+from uuid import uuid4
 
+from codeinterpreterapi import File
 from fastapi import FastAPI, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import DATA_DIR
+from scraibe.agent import analyze_data, generate_graphs
 from scraibe.pdf import pdf_to_txt
 from scraibe.utils import del_dir
 
@@ -23,6 +25,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+files = [
+    File.from_path("data/split/d_hcpcs.csv"),
+    File.from_path("data/split/patients.csv"),
+    File.from_path("data/split/hcpcsevents.csv"),
+    File.from_path("data/split/icustays.csv"),
+    File.from_path("data/split/procedures_icd.csv"),
+    File.from_path("data/split/drgcodes.csv"),
+    File.from_path("data/split/transfers.csv"),
+    File.from_path("data/split/diagnoses_icd.csv"),
+    File.from_path("data/split/microbiologyevents.csv"),
+    File.from_path("data/split/outputevents.csv"),
+    File.from_path("data/split/prescriptions.csv"),
+    File.from_path("data/split/pharmacy.csv"),
+    File.from_path("data/split/d_items.csv"),
+]
 
 
 def add_to_index(index_path: Path, file_id: str, filename: str) -> None:
@@ -125,3 +144,27 @@ async def upload_notes(file: UploadFile = Form(...), metadata: str = Form(...)):
     except Exception as e:
         del_dir(base_dir)
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.get("/analysis")
+async def get_analysis():
+    """
+    Get the analysis from the server.
+    """
+    answer = await analyze_data(files=files)
+    return JSONResponse(content=answer, status_code=200)
+
+
+@app.get("/graphs")
+async def get_graphs():
+    """
+    Get the graphs from the server.
+    """
+    data = await analyze_data(files=files)
+    answer = await generate_graphs(files=files, data=data)
+    return JSONResponse(content=answer, status_code=200)
+
+
+@app.get("/get_image/{image_path:path}")
+async def get_image(image_path: str):
+    return FileResponse(DATA_DIR.joinpath("visualizations", image_path))

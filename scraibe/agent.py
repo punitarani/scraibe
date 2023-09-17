@@ -69,21 +69,21 @@ async def analyze_data(files: list[File]) -> dict[str, dict[str, str]]:
             response.update({dataset.name: data})
 
             # Output to the user
-            # print("AI: ", resp.content)
-            # for file in resp.files:
+            # print("AI: ", data.content)
+            # for file in data.files:
             #     file.show_image()
 
         return response
 
 
 async def generate_visuals(
-    files: list[File], resp: dict[str, dict[str, str]]
+    files: list[File], data: dict[str, dict[str, str]]
 ) -> dict[str, dict[str, str]]:
     processed_files = set()
     response = {}
 
     async with CodeInterpreterSession(max_iterations=40) as session:
-        for name, data in resp.items():
+        for name, data in data.items():
             info_request = f"""
             Given the previous analysis, please summarize the key findings...
             {data['text']}  # Getting the text from the previous response
@@ -189,4 +189,4 @@ if __name__ == "__main__":
     }
 
     # print(asyncio.run(analyze_data(files=_files)))
-    print(asyncio.run(generate_visuals(files=_files, resp=_data)))
+    print(asyncio.run(generate_visuals(files=_files, data=_data)))
