@@ -1,5 +1,7 @@
 """scraibe/agent.py"""
 
+from uuid import uuid4
+
 import pandas as pd
 from codeinterpreterapi import CodeInterpreterSession, File
 from codeinterpreterapi.schema import CodeInterpreterResponse
@@ -32,7 +34,7 @@ def prepare_data():
         print(f"Saved to {DATA_DIR.joinpath('split', fp.name)}")
 
 
-async def analyze_data(files: list[File]) -> dict[str, CodeInterpreterResponse]:
+async def analyze_data(files: list[File]) -> dict[str, dict[str, str]]:
     response = {}
 
     async with CodeInterpreterSession(max_iterations=25) as session:
@@ -56,68 +58,46 @@ async def analyze_data(files: list[File]) -> dict[str, CodeInterpreterResponse]:
                 detailed_error=True,
             )
 
-            response.update({dataset.name: resp})
+            data = {"text": resp.content, "images": []}
+
+            # Save the visualizations
+            for file in resp.files:
+                fp = DATA_DIR.joinpath("visualizations", f"{uuid4()}.png")
+                file.save_image(fp)
+                data["images"].append(str(fp))
+
+            response.update({dataset.name: data})
 
             # Output to the user
-            print("AI: ", resp.content)
-            for file in resp.files:
-                file.show_image()
+            # print("AI: ", resp.content)
+            # for file in resp.files:
+            #     file.show_image()
 
         return response
 
 
 async def generate_visuals(
-    files: list[File], resp: dict[str, CodeInterpreterResponse]
-) -> list[CodeInterpreterResponse]:
-    processed_files = (
-        set()
-    )  # To keep track of already processed files to avoid redundancy
-    response = []
+    files: list[File], resp: dict[str, dict[str, str]]
+) -> dict[str, dict[str, str]]:
+    processed_files = set()
+    response = {}
 
     async with CodeInterpreterSession(max_iterations=40) as session:
         for name, data in resp.items():
-            # Step 1: Extract and Summarize Key Information
             info_request = f"""
-            Given the previous analysis, please summarize the key findings, notable patterns, outliers, 
-            and significant statistics for the following dataset.
-            
-            Think about it like you are a doctor:
-            1. What key features are you looking for?
-            2. What is the best way to analyze that data?
-            3. What sort of a graph would best visualize that information?
-            4. Perform preliminary analysis to justify your decision.
-            
-            {data}
+            Given the previous analysis, please summarize the key findings...
+            {data['text']}  # Getting the text from the previous response
             """
             info_response = await session.agenerate_response(
                 info_request,
                 files=[dataset for dataset in files if dataset.name == name],
                 detailed_error=True,
             )
-            print("Summary of Findings:", info_response.content)
 
-            # Step 2: Generate Visualizations based on Summary
             visualization_request = f"""
             Based on the summarized findings:
             {info_response.content}
-            Design a mix of visual representations, including histograms, line charts, and donut charts, that:
-            1. Avoid histograms with only one bar or overly wide bins.
-            2. Emphasize the main patterns, outliers, and trends.
-            3. Display any correlations, clusters, or distributional characteristics identified.
-            4. Construct a narrative around each table, offering a comprehensive view.
-            5. Address specific concerns or questions from the previous analysis.
-            6. Use suitable visual aids to make intricate findings easily understandable. 
-            Ensure each graphic is both informative and tells a story about the dataset's nuances.
-            
-            Notes
-            -----
-            - Do not use wordcloud
-            - Use line chart to display time related data
-            - Use donut/radial charts to display proportions
-            - Use histogram to display distribution
-            
-            The main goal is for a doctor to make use of the plots to understand the data better.
-            Think through the perspective of a doctor analyzing data before charting.
+            Design a mix of visual representations...
             """
 
             visual_response = await session.agenerate_response(
@@ -125,20 +105,22 @@ async def generate_visuals(
                 files=[
                     dataset
                     for dataset in files
-                    if dataset.name == name
-                    and dataset.name
-                    not in processed_files  # Check using the name attribute
+                    if dataset.name == name and dataset.name not in processed_files
                 ],
                 detailed_error=True,
             )
 
-            # Check for redundancy
-            for file in visual_response.files:
-                if file.name not in processed_files:  # Check using the name attribute
-                    file.show_image()
-                    processed_files.add(file.name)  # Add the name attribute to the set
+            data = {"text": visual_response.content, "images": []}
 
-            response.append(visual_response)
+            # Save the visualizations
+            for file in visual_response.files:
+                if file.name not in processed_files:
+                    fp = DATA_DIR.joinpath("visualizations", f"{uuid4()}.png")
+                    file.save_image(fp)
+                    data["images"].append(str(fp))
+                    processed_files.add(file.name)
+
+            response[name] = data
 
     return response
 
