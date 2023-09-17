@@ -98,7 +98,7 @@ class Bot:
 
             # Requesting the model for a response
             response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
+                model="gpt-4",
                 messages=messages,
             )
 

@@ -1,9 +1,10 @@
 """scraibe/agent.py"""
-
 from uuid import uuid4
 
+import openai
 import pandas as pd
 from codeinterpreterapi import CodeInterpreterSession, File
+from codeinterpreterapi.schema import CodeInterpreterResponse
 from dotenv import load_dotenv
 
 from config import DATA_DIR, PROJECT_DIR
@@ -103,7 +104,8 @@ async def analyze_data(files: list[File]) -> dict[str, dict[str, str]]:
                 "Only generate visualizations if they are truly meaningful. "
                 "It is not required to generate a visual for each dataset table. "
                 "Logically analyze and build on top of each table, which composes a part of the dataset as a whole. "
-                "Build on top of each table's analysis to provided a holistic analysis that can be used in future."
+                "Build on top of each table's analysis to provided a holistic analysis that can be used in future. "
+                "YOU ARE ONLY PROVIDED AND SHOULD ANALYZE DATA OF 1 PATIENT."
             )
 
             resp = await session.agenerate_response(
@@ -111,6 +113,11 @@ async def analyze_data(files: list[File]) -> dict[str, dict[str, str]]:
                 files=[dataset],
                 detailed_error=True,
             )
+
+            # Output to the user
+            print("AI: ", resp.content)
+            for file in resp.files:
+                file.show_image()
 
             data = {"text": resp.content, "images": []}
 
@@ -122,11 +129,6 @@ async def analyze_data(files: list[File]) -> dict[str, dict[str, str]]:
 
             response.update({dataset.name: data})
 
-            # Output to the user
-            # print("AI: ", data.content)
-            # for file in data.files:
-            #     file.show_image()
-
         return response
 
 
@@ -137,10 +139,10 @@ async def generate_visuals(
     response = {}
 
     async with CodeInterpreterSession(max_iterations=40) as session:
-        for name, data in data.items():
+        for name, vals in data.items():
             info_request = f"""
             Given the previous analysis, please summarize the key findings...
-            {data['text']}  # Getting the text from the previous response
+            {vals['content']}  # Getting the text from the previous response
             """
             info_response = await session.agenerate_response(
                 info_request,
@@ -179,6 +181,60 @@ async def generate_visuals(
     return response
 
 
+async def summarize_report(files: list[File]) -> dict[str, CodeInterpreterResponse]:
+    response = {}
+
+    async with CodeInterpreterSession(max_iterations=25) as session:
+        for dataset in files:
+            # define the user request
+            user_request = (
+                "You're a seasoned medical data scientist with expertise in generating insightful visualizations. "
+                "Examine the provided dataset with a sharp clinical perspective. "
+                "Summarize the key findings of the analysis to provide a summary of the patient's medical history. "
+                "YOU ARE ONLY PROVIDED AND SHOULD ANALYZE DATA OF 1 PATIENT."
+            )
+
+            resp = await session.agenerate_response(
+                user_request,
+                files=[dataset],
+                detailed_error=True,
+            )
+
+            response.update({dataset.name: resp})
+
+            # Output to the user
+            # print("AI: ", data.content)
+            # for file in data.files:
+            #     file.show_image()
+
+    final_prompt = "\n\n".join(
+        [
+            f"Here are the results of the analysis for {dataset.name}:\n\n{resp.content}"
+            for dataset, resp in response.items()
+        ]
+    )
+
+    final_prompt += "\n\nPlease summarize the key findings of the analysis to provide a summary of the patient's medical history."
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a medical assistant with access to historical medical notes.",
+        },
+        {
+            "role": "user",
+            "content": final_prompt,
+        },
+    ]
+
+    resp = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=messages,
+    )
+
+    return resp["choices"][0]["message"]["content"]
+
+
 if __name__ == "__main__":
     # get_data()
     # prepare_data()
@@ -186,19 +242,19 @@ if __name__ == "__main__":
     import asyncio
 
     _files = [
-        File.from_path("data/split/d_hcpcs.csv"),
+        # File.from_path("data/split/d_hcpcs.csv"),
         File.from_path("data/split/patients.csv"),
-        File.from_path("data/split/hcpcsevents.csv"),
+        # File.from_path("data/split/hcpcsevents.csv"),
         File.from_path("data/split/icustays.csv"),
         File.from_path("data/split/procedures_icd.csv"),
-        File.from_path("data/split/drgcodes.csv"),
-        File.from_path("data/split/transfers.csv"),
+        # File.from_path("data/split/drgcodes.csv"),
+        # File.from_path("data/split/transfers.csv"),
         File.from_path("data/split/diagnoses_icd.csv"),
-        File.from_path("data/split/microbiologyevents.csv"),
-        File.from_path("data/split/outputevents.csv"),
+        # File.from_path("data/split/microbiologyevents.csv"),
+        # File.from_path("data/split/outputevents.csv"),
         File.from_path("data/split/prescriptions.csv"),
         File.from_path("data/split/pharmacy.csv"),
-        File.from_path("data/split/d_items.csv"),
+        # File.from_path("data/split/d_items.csv"),
     ]
 
     _data = {
@@ -244,4 +300,5 @@ if __name__ == "__main__":
     }
 
     # print(asyncio.run(analyze_data(files=_files)))
+    # print(asyncio.run(summarize_report(files=_files)))
     print(asyncio.run(generate_visuals(files=_files, data=_data)))
