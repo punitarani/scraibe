@@ -4,13 +4,67 @@ from uuid import uuid4
 
 import pandas as pd
 from codeinterpreterapi import CodeInterpreterSession, File
-from codeinterpreterapi.schema import CodeInterpreterResponse
 from dotenv import load_dotenv
 
 from config import DATA_DIR, PROJECT_DIR
 from scraibe import SUBJECT_ID
+from scraibe.db import connect
 
 load_dotenv(PROJECT_DIR.joinpath(".env"))
+
+
+def get_data():
+    """
+    Get data from the database and save it to /db/mimic/*.csv.
+    Only fetch rows where subject_id == SUBJECT_ID if possible.
+    """
+
+    # Connect to the database and get the cursor
+    conn = connect()
+    cur = conn.cursor()
+
+    # List of all tables
+    tables = [
+        "d_hcpcs",
+        "d_items",
+        "diagnoses_icd",
+        "drgcodes",
+        "hcpcsevents",
+        "icustays",
+        "microbiologyevents",
+        "outputevents",
+        "patients",
+        "pharmacy",
+        "prescriptions",
+        "procedures_icd",
+        "transfers",
+    ]
+
+    db_dir = PROJECT_DIR.joinpath("db", "mimic")
+
+    for table in tables:
+        print(f"Fetching data from {table}")
+
+        # Check if the table has a subject_id column
+        # If it has, filter the data by SUBJECT_ID
+        query = f"SELECT * FROM {table}"
+        if table != "patients":  # patients table always has subject_id
+            try:
+                cur.execute(f"SELECT subject_id FROM {table} LIMIT 1")
+                query += f" WHERE subject_id = {SUBJECT_ID}"
+            except:
+                pass
+
+        df = pd.read_sql_query(query, conn)
+
+        # Save the dataframe to a CSV file
+        filename = table + ".csv"
+        file_path = db_dir.joinpath(filename)
+        df.to_csv(file_path, index=False)
+        print(f"Saved data from {table} to {file_path}")
+
+    cur.close()
+    conn.close()
 
 
 def prepare_data():
@@ -126,6 +180,7 @@ async def generate_visuals(
 
 
 if __name__ == "__main__":
+    # get_data()
     # prepare_data()
 
     import asyncio
