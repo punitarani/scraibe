@@ -10,4 +10,5 @@ endif
 
 format:
 	black *.py
+	black data/
 	black scraibe/
