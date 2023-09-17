@@ -160,6 +160,20 @@ files = [
 ]
 
 [[package]]
+name = "intersystems-irispython"
+version = "3.2.0"
+description = "Python InterOperability Kit"
+optional = false
+python-versions = ">=3.6.6"
+files = [
+    {file = "intersystems_irispython-3.2.0-py3-none-any.whl", hash = "sha256:947b197f8c34c0e81316a48dbd75de7ae86405a573ffe0811b7f88927c5f5cf7"},
+]
+
+[package.source]
+type = "file"
+url = "lib/intersystems_irispython-3.2.0-py3-none-any.whl"
+
+[[package]]
 name = "mypy-extensions"
 version = "1.0.0"
 description = "Type system extensions for programs checked with the mypy type checker."
@@ -679,4 +693,4 @@ standard = ["colorama (>=0.4)", "httptools (>=0.5.0)", "python-dotenv (>=0.13)",
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3552028628a89c367abbfc4576394767352c271d4d53e4839367b70926f400e4"
+content-hash = "d402a62fb30823ce2eb7b9cfc11839262d4e9d56a1f51eb1ac22e346a13c3ebb"

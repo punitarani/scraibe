@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.10"
 fastapi = "^0.103.1"
 uvicorn = "^0.23.2"
+intersystems-irispython = {path = "lib/intersystems_irispython-3.2.0-py3-none-any.whl"}
 pandas = "^2.1.0"
 pymupdf = "^1.23.3"
 python-dotenv = "^1.0.0"
