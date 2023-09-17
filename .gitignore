@@ -178,3 +178,7 @@ cython_debug/
 
 ### JetBrains
 .idea
+
+
+### Project
+.env
